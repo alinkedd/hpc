@@ -32,9 +32,9 @@ double factorial(int n) {
   return product;
 }
 
-// Function to calculate sh series term - x^(2n-1) / !(2n-1)
+// Function to calculate sh series term - x^(2n+1) / !(2n+1)
 double calc_sh_term(int n, double x) {
-  int odd_n = 2 * (n + 1) - 1; // n starts from 0, so increment by 1
+  int odd_n = 2 * n + 1;
   double term = pow(x, odd_n) / factorial(odd_n);
 
   return term;
