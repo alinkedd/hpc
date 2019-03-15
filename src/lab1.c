@@ -111,7 +111,6 @@ void slave() {
 int main(int argc, char *argv[]) {
   int rank;
   int np;
-  double series_sum;
 
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -119,7 +118,7 @@ int main(int argc, char *argv[]) {
 
   if (rank == 0) {
     double x = 0.5; // main variable
-    series_sum = master(np, x);
+    double series_sum = master(np, x);
     printf("%.15lf\n", series_sum);
   } else {
     slave();
