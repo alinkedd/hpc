@@ -4,13 +4,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-const double EPSILON = 1E-100; // Точність обчислення значення
+const double EPSILON = 1E-8; // Точність обчислення значення
 const int VALUE_TAG = 1; // Теґ показнику ступеня числа E
 const int TERM_NUMBER_TAG = 2; // Теґ номера поточного члену ряду
 const int TERM_TAG = 3; // Теґ значення поточного члену ряду
 const int BREAK_TAG = 4; // Теґ сигналу про завершення обчислень
-const char *input_file_name = "in.txt"; // Ім’я файла вхідних даних
-const char *output_file_name = "out.txt"; // Ім’я файла результату
 
 double factorial(int value) {
   if (value < 0) {
