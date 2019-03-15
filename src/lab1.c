@@ -79,7 +79,7 @@ double master(int np, double x) {
 
       // If added term's lesser than some epsilon, than stop calculations using
       // finish variable
-      if (term < EPSILON) {
+      if (fabs(term) < EPSILON) {
         finish = true;
         break;
       }
