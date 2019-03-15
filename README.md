@@ -13,5 +13,5 @@ make
 *Для запуску за допомогою OpenMPI:*
 
 ```
-mpirun [-np X] [-bind-to none] bin/lab1  
+mpirun [-np X] [-bind-to none|core] bin/lab1  
 ```
