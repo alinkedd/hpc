@@ -11,6 +11,14 @@ const int N_TAG = 2;
 const int TERM_TAG = 3;
 const int FINISH_TAG = 4;
 
+// Function to write data to file
+void append_time_to_file(int np, double time) {
+  char buffer[1024];
+  snprintf(buffer, sizeof(buffer), "bin/lab1p%d.txt", np);
+  FILE *pFile = fopen(buffer, "a");
+  fprintf(pFile, "%lf\n", time);
+}
+
 // Function to calculate factorial of n
 double factorial(int n) {
   double product = 1.0;
@@ -84,8 +92,9 @@ double master(int np, double x) {
   }
 
   clock_t end = clock();
-  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("For %d processes time is %.15lf s\n", np, time_spent);
+  double total_time = (double)(end - begin) / CLOCKS_PER_SEC;
+
+  append_time_to_file(np, total_time);
 
   return series_sum;
 }
@@ -124,9 +133,9 @@ int main(int argc, char *argv[]) {
   MPI_Comm_size(MPI_COMM_WORLD, &np);
 
   if (rank == 0) {
-    double x = 0.5; // main variable
+    double x = 60; // main variable
     double series_sum = master(np, x);
-    printf("%.15lf\n", series_sum);
+    // printf("Partial sum is %.15lf\n", series_sum);
   } else {
     slave();
   }
