@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 const double EPSILON = 1E-8;  // Calculations precision
 const int X_TAG = 1;
@@ -38,6 +39,8 @@ double master(int np, double x) {
   int n;
   double series_sum = 0.0;
   double term;
+
+  clock_t begin = clock();
 
   // Sends X to slaves
   for (int i = 1; i < np; i++) {
@@ -79,6 +82,10 @@ double master(int np, double x) {
       MPI_Send(&finish, 1, MPI_INT, i, FINISH_TAG, MPI_COMM_WORLD);
     }
   }
+
+  clock_t end = clock();
+  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+  printf("For %d processes time is %.15lf s\n", np, time_spent);
 
   return series_sum;
 }
