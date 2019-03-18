@@ -1,3 +1,4 @@
+#include <float.h>
 #include <math.h>
 #include <mpi.h>
 #include <stdbool.h>
@@ -7,9 +8,7 @@
 
 const double EPSILON = 1E-8;  // Calculations precision
 const int X_TAG = 1;
-const int N_TAG = 2;
-const int TERM_TAG = 3;
-const int FINISH_TAG = 4;
+const int SUM_TAG = 2;
 
 // Function to write data to file
 void append_time_to_file(int np, double time) {
@@ -40,54 +39,49 @@ double calc_sh_term(int n, double x) {
   return term;
 }
 
+// Function to calculate sum of terms at indeces [i + (k * P)],
+// where i - process' rank, P - number of processes, k = 0..C -
+double calc_process_partial_sum(int rank, int np, double x) {
+  int n = rank;
+  double term = DBL_MAX;
+  double p_series_sum = 0.0;
+
+  while (term >= EPSILON) {
+    // Calculates term
+    term = calc_sh_term(n, x);
+    // Adds term to process' partial sum
+    p_series_sum += term;
+    // Increment term index
+    n += np;
+  }
+
+  return p_series_sum;
+}
+
 // Master process (manages data, but also calculates term)
-double master(int np, double x) {
-  int finish = false;
-  int next_n = 0;
-  int n;
+double master(int rank, int np, double x) {
   double series_sum = 0.0;
-  double term;
+  double p_series_sum;
 
   clock_t begin = clock();
 
-  // Sends X to slaves
-  for (int i = 1; i < np; i++) {
-    MPI_Send(&x, 1, MPI_DOUBLE, i, X_TAG, MPI_COMM_WORLD);
+  for (int i = 0; i < np; i++) {
+    if (i != rank) {
+      // Sends X to slaves
+      MPI_Send(&x, 1, MPI_DOUBLE, i, X_TAG, MPI_COMM_WORLD);
+    }
   }
 
-  while(!finish) {
-    n = next_n++;
+  // Calculates process' partial sum
+  series_sum += calc_process_partial_sum(rank, np, x);
 
-    // Sends term index N to slaves
-    for (int i = 1; i < np; i++) {
-      MPI_Send(&next_n, 1, MPI_INT, i, N_TAG, MPI_COMM_WORLD);
-      next_n++;
-    }
+  for (int i = 0; i < np; i++) {
+    if (i != rank) {
+      // Receives term from i-th slave
+      MPI_Recv(&p_series_sum, 1, MPI_DOUBLE, i, SUM_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    for (int i = 0; i < np; i++) {
-      if (i == 0) {
-        // Calculates term
-        term = calc_sh_term(n, x);
-      }
-      else {
-        // Receives term from i-th slave
-        MPI_Recv(&term, 1, MPI_DOUBLE, i, TERM_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      }
-
-      // Adds term to partial sum
-      series_sum += term;
-
-      // If added term's lesser than some epsilon, than stop calculations using
-      // finish variable
-      if (fabs(term) < EPSILON) {
-        finish = true;
-        break;
-      }
-    }
-
-    // Sends current finish variable (finishes slaves if finish is true)
-    for (int i = 1; i < np; i++) {
-      MPI_Send(&finish, 1, MPI_INT, i, FINISH_TAG, MPI_COMM_WORLD);
+      // Adds term to series sum
+      series_sum += p_series_sum;
     }
   }
 
@@ -100,27 +94,15 @@ double master(int np, double x) {
 }
 
 // Slave process (calculates term only)
-void slave() {
-  int finish = false;
-  int n;
+void slave(int rank, int np, int master_rank) {
   double x;
-  double term;
-
   // Receives X from master
-  MPI_Recv(&x, 1, MPI_DOUBLE, 0, X_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Recv(&x, 1, MPI_DOUBLE, master_rank, X_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-  while (!finish) {
-    // Receives term index N from master
-    MPI_Recv(&n, 1, MPI_INT, 0, N_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-    // Calculates term
-    term = calc_sh_term(n, x);
-
-    // Sends term to master
-    MPI_Send(&term, 1, MPI_DOUBLE, 0, TERM_TAG, MPI_COMM_WORLD);
-    // Receives finish variable from master (ends loop if finish is true)
-    MPI_Recv(&finish, 1, MPI_INT, 0, FINISH_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  }
+  // Calculates process' partial sum
+  double series_sum = calc_process_partial_sum(rank, np, x);
+  // Sends term to master
+  MPI_Send(&series_sum, 1, MPI_DOUBLE, master_rank, SUM_TAG, MPI_COMM_WORLD);
 }
 
 // Main process (copied by mpi)
@@ -133,11 +115,11 @@ int main(int argc, char *argv[]) {
   MPI_Comm_size(MPI_COMM_WORLD, &np);
 
   if (rank == 0) {
-    double x = 60; // main variable
-    double series_sum = master(np, x);
+    double x = 0.5; // main variable
+    double series_sum = master(rank, np, x);
     // printf("Partial sum is %.15lf\n", series_sum);
   } else {
-    slave();
+    slave(rank, np, 0);
   }
 
   MPI_Finalize();
