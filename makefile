@@ -5,8 +5,8 @@ LIBS=-L/usr/lib/x86_64-linux-gnu -lsndfile -lm
 all: ${EXECS}
 
 lab1: src/lab1.c
-	# mkdir bin
+	mkdir bin && mkdir output
 	${MPICC} -o bin/lab1 src/lab1.c $(LIBS)
 
 clean:
-	rm -rf bin
+	rm -rf bin && rm -rf output
