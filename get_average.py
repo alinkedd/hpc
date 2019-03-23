@@ -8,7 +8,7 @@ def main():
 
     for filename in filenames:
         input_file = open(input_directory + filename, 'r')
-        lines = input_file.readlines();
+        lines = input_file.readlines()
         input_file.close()
 
         count = len(lines)

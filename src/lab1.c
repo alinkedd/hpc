@@ -48,7 +48,7 @@ double calc_process_partial_sum(int rank, int np, double x) {
   double term = DBL_MAX;
   double p_series_sum = 0.0;
 
-  while (term >= EPSILON) {
+  while (fabs(term) >= EPSILON) {
     // Calculates term
     term = calc_sh_term(n, x);
     // Adds term to process' partial sum
