@@ -16,7 +16,7 @@ def main():
         average = lines_sum / count
 
         output_file = open(output_directory + filename, 'w+')
-        output_file.write(str(average) + '\n')
+        output_file.write('{:.{prec}f}\n'.format(average, prec = 8))
         output_file.close()
 
 main()
