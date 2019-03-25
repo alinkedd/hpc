@@ -11,6 +11,8 @@ const int X_TAG = 1;
 const int SUM_TAG = 2;
 const int FINISH_TAG = 3;
 
+const int NUMBER_OF_ITERATIONS = 1000;
+
 // Function to write data to file
 void append_time_to_file(int np, double x, double time) {
   char buffer[1024];
@@ -83,23 +85,25 @@ void master(int rank, int np) {
 
     clock_t begin = clock();
 
-    for (int i = 0; i < np; i++) {
-      if (i != rank) {
-        // Sends X to slaves
-        MPI_Send(&x, 1, MPI_DOUBLE, i, X_TAG, MPI_COMM_WORLD);
+    for (int k = 0; k < NUMBER_OF_ITERATIONS; k++) {
+      for (int i = 0; i < np; i++) {
+        if (i != rank) {
+          // Sends X to slaves
+          MPI_Send(&x, 1, MPI_DOUBLE, i, X_TAG, MPI_COMM_WORLD);
+        }
       }
-    }
 
-    // Calculates process' partial sum
-    series_sum += calc_process_partial_sum(rank, np, x);
+      // Calculates process' partial sum
+      series_sum += calc_process_partial_sum(rank, np, x);
 
-    for (int i = 0; i < np; i++) {
-      if (i != rank) {
-        // Receives term from i-th slave
-        MPI_Recv(&p_series_sum, 1, MPI_DOUBLE, i, SUM_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      for (int i = 0; i < np; i++) {
+        if (i != rank) {
+          // Receives term from i-th slave
+          MPI_Recv(&p_series_sum, 1, MPI_DOUBLE, i, SUM_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-        // Adds term to series sum
-        series_sum += p_series_sum;
+          // Adds term to series sum
+          series_sum += p_series_sum;
+        }
       }
     }
 
@@ -126,14 +130,16 @@ void slave(int rank, int np, int master_rank) {
   MPI_Recv(&finish, 1, MPI_INT, master_rank, FINISH_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
   while (!finish) {
-    // Receives X from master
-    MPI_Recv(&x, 1, MPI_DOUBLE, master_rank, X_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    for (int k = 0; k < NUMBER_OF_ITERATIONS; k++) {
+      // Receives X from master
+      MPI_Recv(&x, 1, MPI_DOUBLE, master_rank, X_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    // Calculates process' partial sum
-    series_sum = calc_process_partial_sum(rank, np, x);
+      // Calculates process' partial sum
+      series_sum = calc_process_partial_sum(rank, np, x);
 
-    // Sends term to master
-    MPI_Send(&series_sum, 1, MPI_DOUBLE, master_rank, SUM_TAG, MPI_COMM_WORLD);
+      // Sends term to master
+      MPI_Send(&series_sum, 1, MPI_DOUBLE, master_rank, SUM_TAG, MPI_COMM_WORLD);
+    }
 
     // Receives if calculations stop
     MPI_Recv(&finish, 1, MPI_INT, master_rank, FINISH_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);

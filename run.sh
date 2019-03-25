@@ -1,8 +1,5 @@
 #!/bin/bash
-for i in {1..4}
+for i in {1..2}
 do
-  for j in {1..1000}
-  do
-     mpirun -np $i bin/lab1
-  done
+  mpirun -np $i bin/lab1
 done
