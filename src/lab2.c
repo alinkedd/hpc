@@ -7,7 +7,10 @@
 #include <time.h>
 
 const double EPSILON = 1E-4;  // Calculations precision
-const double SIGMA = 1 / 3    // Sigma in Runge fule for Riemann sum
+const double SIGMA = 1 / 3;    // Sigma in Runge fule for Riemann sum
+
+const int INPUT_TAG = 0;
+const int OUTPUT_TAG = 1;
 
 // Function to write data to file
 void append_time_to_file(int np, double time) {
@@ -19,17 +22,14 @@ void append_time_to_file(int np, double time) {
 }
 
 // Function to read input data from file
-double[] read_from_file() {
-  double input[3];
+double* read_from_file(double* input) {
   FILE *pFile = fopen("input/lab2.txt", "r");
 
   for (int i = 0; i < 3; i++) {
-    fscanf(fp, "%lf\n", &input[i]);
+    fscanf(pFile, "%lf\n", &input[i]);
   }
 
-  fclose(fp);
-
-  return input;
+  fclose(pFile);
 }
 
 // Function to calculate integral function x ^ x+3,
@@ -39,7 +39,7 @@ double function(double x) {
 
 // Function to check Runge rule
 bool check_runge(double I2, double I, double epsilon) {
-  return (fabs(I2 - I) * SIGMA) < epsilon);
+  return ((fabs(I2 - I) * SIGMA) < epsilon);
 }
 
 // Function to sum right Riemann
@@ -49,7 +49,7 @@ double sum_right_riemann(double a, double b, double epsilon) {
   double curr_I = -1.;
   double h = 0.;
 
-  while(!check_Runge(curr_I, prev_I, epsilon)) {
+  while(!check_runge(curr_I, prev_I, epsilon)) {
     n *= 2;
     h = (b - a) / n;
     prev_I = curr_I;
@@ -74,28 +74,34 @@ double get_result(int rank, int np, double input[]) {
 
 // Master process (manages data, but also calculates term)
 void master(int rank, int np) {
+  double input[3];
   double result_all[np - 1];
   MPI_Request recv_reqs[np - 1];
+  MPI_Request send_reqs[np - 1];
   MPI_Status status[np - 1];
-  
+
   // input[0] -- a
   // input[1] -- b
   // input[2] -- epsilon
-  double input[3] = read_from_file();
+  read_from_file(input);
 
   clock_t begin = clock();
 
-  MPI_Bcast(input, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  for (int i = 1; i < np; i++) {
+    MPI_Isend(input, 3, MPI_DOUBLE, i, INPUT_TAG, MPI_COMM_WORLD, &send_reqs[i - 1]);
+  }
+
+  MPI_Waitall(np - 1, send_reqs, status);
 
   double result = get_result(rank, np, input);
 
   for (int i = 1; i < np; i++) {
-    MPI_Irecv(&result_all[i - 1], 1, MPI_DOUBLE, i, i, MPI_COMM_WORLD, &recv_reqs[i - 1]);
+    MPI_Irecv(&result_all[i - 1], 1, MPI_DOUBLE, i, OUTPUT_TAG, MPI_COMM_WORLD, &recv_reqs[i - 1]);
   }
 
   MPI_Waitall(np - 1, recv_reqs, status);
 
-  for (int i = 0; i &lt; (np - 1); i++) {
+  for (int i = 0; i < (np - 1); i++) {
     result += result_all[i];
   }
 
@@ -108,12 +114,17 @@ void master(int rank, int np) {
 // Slave process (calculates term only)
 void slave(int rank, int np, int master_rank) {
   double input[3];
+  MPI_Request recv_reqs[1];
+  MPI_Request send_reqs[1];
+  MPI_Status status[1];
 
-  MPI_Bcast(input, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Irecv(input, 3, MPI_DOUBLE, master_rank, INPUT_TAG, MPI_COMM_WORLD, recv_reqs);
+
+  MPI_Waitall(1, recv_reqs, status);
 
   double result = get_result(rank, np, input);
 
-  MPI_Send(&result, 1, MPI_DOUBLE, master_rank, rank, MPI_COMM_WORLD);
+  MPI_Isend(&result, 1, MPI_DOUBLE, master_rank, OUTPUT_TAG, MPI_COMM_WORLD, send_reqs);
 }
 
 // Main process (copied by mpi)
