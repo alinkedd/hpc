@@ -77,11 +77,6 @@ double get_result(int rank, int np, double input[]) {
 // Master process (manages data, but also calculates term)
 void master(int rank, int np) {
   double input[3];
-  double result_all[np - 1];
-  MPI_Request recv_reqs[np - 1];
-  MPI_Request send_reqs[np - 1];
-  MPI_Status status_recv[np - 1];
-  MPI_Status status_send[np - 1];
 
   // input[0] -- a
   // input[1] -- b
@@ -91,6 +86,11 @@ void master(int rank, int np) {
   clock_t begin = clock();
 
   for (int k = 0; k < NUMBER_OF_ITERATIONS; k++) {
+    double result_all[np - 1];
+    MPI_Request recv_reqs[np - 1];
+    MPI_Request send_reqs[np - 1];
+    MPI_Status status_recv[np - 1];
+    MPI_Status status_send[np - 1];
 
     for (int i = 1; i < np; i++) {
       MPI_Isend(input, 3, MPI_DOUBLE, i, INPUT_TAG, MPI_COMM_WORLD, &send_reqs[i - 1]);
@@ -121,18 +121,23 @@ void master(int rank, int np) {
 
 // Slave process (calculates term only)
 void slave(int rank, int np, int master_rank) {
-  double input[3];
-  MPI_Request recv_reqs[1];
-  MPI_Request send_reqs[1];
-  MPI_Status status[1];
+  for (int k = 0; k < NUMBER_OF_ITERATIONS; k++) {
+    double input[3];
+    MPI_Request recv_reqs[1];
+    MPI_Request send_reqs[1];
+    MPI_Status status_recv[np - 1];
+    MPI_Status status_send[np - 1];
 
-  MPI_Irecv(input, 3, MPI_DOUBLE, master_rank, INPUT_TAG, MPI_COMM_WORLD, recv_reqs);
+    MPI_Irecv(input, 3, MPI_DOUBLE, master_rank, INPUT_TAG, MPI_COMM_WORLD, recv_reqs);
 
-  MPI_Waitall(1, recv_reqs, status);
+    MPI_Waitall(1, recv_reqs, status_recv);
 
-  double result = get_result(rank, np, input);
+    double result = get_result(rank, np, input);
 
-  MPI_Isend(&result, 1, MPI_DOUBLE, master_rank, OUTPUT_TAG, MPI_COMM_WORLD, send_reqs);
+    MPI_Isend(&result, 1, MPI_DOUBLE, master_rank, OUTPUT_TAG, MPI_COMM_WORLD, send_reqs);
+
+    MPI_Waitall(1, send_reqs, status_send);
+  }
 }
 
 // Main process (copied by mpi)
