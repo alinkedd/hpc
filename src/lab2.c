@@ -7,10 +7,12 @@
 #include <time.h>
 
 const double EPSILON = 1E-4;  // Calculations precision
-const double SIGMA = 1 / 3;    // Sigma in Runge fule for Riemann sum
+const double SIGMA = 0.33;    // Sigma in Runge fule for Riemann sum
 
 const int INPUT_TAG = 0;
-const int OUTPUT_TAG = 1;
+const int OUTPUT_TAG = 1000;
+
+const int NUMBER_OF_ITERATIONS = 1;
 
 // Function to write data to file
 void append_time_to_file(int np, double time) {
@@ -78,7 +80,8 @@ void master(int rank, int np) {
   double result_all[np - 1];
   MPI_Request recv_reqs[np - 1];
   MPI_Request send_reqs[np - 1];
-  MPI_Status status[np - 1];
+  MPI_Status status_recv[np - 1];
+  MPI_Status status_send[np - 1];
 
   // input[0] -- a
   // input[1] -- b
@@ -87,22 +90,27 @@ void master(int rank, int np) {
 
   clock_t begin = clock();
 
-  for (int i = 1; i < np; i++) {
-    MPI_Isend(input, 3, MPI_DOUBLE, i, INPUT_TAG, MPI_COMM_WORLD, &send_reqs[i - 1]);
-  }
+  for (int k = 0; k < NUMBER_OF_ITERATIONS; k++) {
 
-  MPI_Waitall(np - 1, send_reqs, status);
+    for (int i = 1; i < np; i++) {
+      MPI_Isend(input, 3, MPI_DOUBLE, i, INPUT_TAG, MPI_COMM_WORLD, &send_reqs[i - 1]);
+    }
 
-  double result = get_result(rank, np, input);
+    MPI_Waitall(np - 1, send_reqs, status_send);
 
-  for (int i = 1; i < np; i++) {
-    MPI_Irecv(&result_all[i - 1], 1, MPI_DOUBLE, i, OUTPUT_TAG, MPI_COMM_WORLD, &recv_reqs[i - 1]);
-  }
+    double result = get_result(rank, np, input);
 
-  MPI_Waitall(np - 1, recv_reqs, status);
+    for (int i = 1; i < np; i++) {
+      MPI_Irecv(&result_all[i - 1], 1, MPI_DOUBLE, i, OUTPUT_TAG, MPI_COMM_WORLD, &recv_reqs[i - 1]);
+    }
 
-  for (int i = 0; i < (np - 1); i++) {
-    result += result_all[i];
+    MPI_Waitall(np - 1, recv_reqs, status_recv);
+
+    for (int i = 0; i < (np - 1); i++) {
+      result += result_all[i];
+    }
+
+    // printf("%f\n", result);
   }
 
   clock_t end = clock();
