@@ -12,7 +12,7 @@ const double SIGMA = 0.33;    // Sigma in Runge fule for Riemann sum
 const int INPUT_TAG = 0;
 const int OUTPUT_TAG = 1000;
 
-const int NUMBER_OF_ITERATIONS = 1;
+const int NUMBER_OF_ITERATIONS = 1000;
 
 // Function to write data to file
 void append_time_to_file(int np, double time) {
