@@ -10,7 +10,7 @@ const double EPSILON = 1E-4;  // Calculations precision
 const double SIGMA = 0.33;    // Sigma in Runge fule for Riemann sum
 
 const int INPUT_TAG = 0;
-const int OUTPUT_TAG = 1000;
+const int OUTPUT_TAG = 1;
 
 const int NUMBER_OF_ITERATIONS = 1000;
 
